@@ -212,6 +212,96 @@ Code that's hard to test is hard to reason about. If you can't write a unit test
 - **Separate I/O from logic** — pure transformation functions are trivially testable
 - **Small, focused functions** — test one behavior per test
 
+---
+
+## Testing
+
+Testing is not a quality gate bolted on at the end — it's a **design activity**. Tests prove correctness, document intent, and make refactoring safe. Senior devs write tests because they've seen what happens without them.
+
+### Test pyramid
+
+```
+        /\
+       /  \   E2E (few, slow, expensive)
+      /----\
+     /      \  Integration (moderate, test boundaries)
+    /--------\
+   /          \  Unit (many, fast, cheap)
+  /____________\
+```
+
+- **Unit tests** — pure logic, no I/O, run in milliseconds. The majority of your suite.
+- **Integration tests** — test that components talk to each other correctly (DB queries, HTTP clients, message queues).
+- **E2E tests** — validate full user flows. Expensive; write few, run sparingly.
+
+**Rule:** If most of your tests are E2E, your design is wrong. E2E tests mask, not prevent, regressions.
+
+### Anatomy of a good test (AAA)
+
+```python
+def test_discount_applied_on_monday():
+    # Arrange — set up inputs and expected outputs
+    base_price = 100.0
+    expected = 90.0
+
+    # Act — call the thing being tested
+    result = get_discount(base_price, is_monday=True)
+
+    # Assert — verify the outcome
+    assert result == expected
+```
+
+One assertion per test. One behavior per test. If the test name needs "and", split it.
+
+### What to test
+
+| Test this | Not this |
+|-----------|----------|
+| Business logic and edge cases | Framework internals |
+| Error paths, not just happy path | Getters/setters with no logic |
+| Boundary values (0, -1, max, empty) | Implementation details |
+| Contract between caller and callee | Private methods directly |
+
+### Naming tests
+
+Test names are documentation. Future readers should know exactly what broke:
+
+```python
+# ❌ Useless
+def test_discount(): ...
+
+# ✅ Documents behavior
+def test_discount_is_10_percent_on_mondays(): ...
+def test_no_discount_on_other_days(): ...
+def test_discount_raises_for_negative_price(): ...
+```
+
+Pattern: `test_<subject>_<condition>_<expected_outcome>`
+
+### Common testing traps
+
+| Trap | Fix |
+|------|-----|
+| Tests that test the mock, not the code | Verify behavior, not that a method was called |
+| Tests coupled to implementation | Test public interface only; refactoring should not break tests |
+| Shared mutable state between tests | Each test sets up its own state; tests must be order-independent |
+| Testing everything through E2E | Push tests down the pyramid; unit-test logic, integration-test wiring |
+| 100% coverage as the goal | Coverage measures what was executed, not what was verified — write meaningful assertions |
+| Giant test helpers/fixtures | If setup is complex, the code under test has too many dependencies |
+
+### When tests are painful to write
+
+Test pain is a signal:
+
+| Pain | What it reveals |
+|------|-----------------|
+| Need to mock 5 things | Function does too much or has too many dependencies |
+| Hard to set up test data | Domain model is anemic or tightly coupled |
+| Tests break when internals change | You're testing implementation, not behavior |
+| Tests are slow | Business logic is entangled with I/O |
+
+Fix the design, not the test.
+
 ### Complexity budget
 
 Every abstraction has a cost. Before adding one, ask:
